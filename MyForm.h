@@ -21,88 +21,138 @@ namespace 測試視窗 {
 	int paint_size=100;
 	int scollbarMax=350;
 	int scollbarMin=20;
+	int DUBBLECLICK = 0;//看是雙擊模式還是一般模式
+	int modeDC = 0;//看是放大模式還是一般大小模式
+
 	string imgName;
 	string saveimgName;
 	Mat original;
 	Mat RedPic;
 	Mat img;
 	Mat protectRegion;
-	//for eraser
+
+	//橡皮擦用
 	Mat RedPicCPY;
 	Mat ProtectRegionCPY;
 	Mat BinaryMapForUI;
 	Mat BinaryMapForProtectMap;
+	Mat BinaryMapForUPsample;
+	Mat RedPicCPY_forUPSAMPLEeraser;
+
+	//放大用
+	Mat RedPicCPY_forUPSAMPLE;
+	Mat ROI;
+	
+	
+	
 	
 	
 	void mymouse(int event, int x, int y, int flag, void* param)
 	{
-		static int oldx, oldy, now_down = 0, eraserDown;
-		
-		
+		static int oldx, oldy, now_down = 0, eraserDown, ROIxBEGIN, ROIxEND, ROIyBEGIN, ROIyEND;
+		//左鍵雙擊放大部分
+		cout << DUBBLECLICK << endl;
+		if (event == CV_EVENT_LBUTTONDBLCLK && DUBBLECLICK == 1){
+			modeDC = 1;
+
+			ROIxBEGIN = x * 4 - RedPicCPY_forUPSAMPLE.cols / 4;
+			ROIxEND = x * 4 + RedPicCPY_forUPSAMPLE.cols / 4;
+			ROIyBEGIN = y * 4 - RedPicCPY_forUPSAMPLE.rows / 4;
+			ROIyEND = y * 4 + RedPicCPY_forUPSAMPLE.rows / 4;
+
+			if (ROIxBEGIN < 0) ROIxBEGIN = 0;
+			if (ROIxEND > RedPicCPY_forUPSAMPLE.cols)ROIxEND = RedPicCPY_forUPSAMPLE.cols - 1;
+			if (ROIyBEGIN< 0) ROIyBEGIN = 0;
+			if (ROIyEND > RedPicCPY_forUPSAMPLE.rows - 1)ROIyEND = RedPicCPY_forUPSAMPLE.rows - 1;
+
+			ROI = RedPicCPY_forUPSAMPLE(Rect(ROIxBEGIN, ROIyBEGIN, ROIxEND - ROIxBEGIN, ROIyEND - ROIyBEGIN));
+
+			DUBBLECLICK = 0;
+			imshow("RedPic", ROI);
+		}
+		//右鍵雙擊縮小部分
+		else if (event == CV_EVENT_RBUTTONDBLCLK&&DUBBLECLICK == 1){
+			modeDC = 0;
+			DUBBLECLICK = 0;
+		}
 		//左鍵畫線部分
-		if (event == CV_EVENT_LBUTTONDOWN){
+		else if (event == CV_EVENT_LBUTTONDOWN&&DUBBLECLICK == 0){
 			circle(RedPic, cvPoint(x, y), paint_size / 2, cvScalar(0, 0, 255));
+			cout << "come in" << endl;
 			oldx = x; oldy = y;
 			now_down = 1;
 
 		}
-		if (event == CV_EVENT_LBUTTONUP){
+		else if (event == CV_EVENT_LBUTTONUP&&DUBBLECLICK == 0){
 			now_down = 0;
 		}
-		if (event == CV_EVENT_MOUSEMOVE && now_down == 1){
+		else if (event == CV_EVENT_MOUSEMOVE && now_down == 1){
 			line(RedPic, cvPoint(x, y), cvPoint(oldx, oldy), cvScalar(0, 255, 0), paint_size, 8, 0);
 			line(protectRegion, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(255), paint_size * 4, 8, 0);
+			line(RedPicCPY_forUPSAMPLE, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(0, 255, 0), paint_size * 4, 8, 0);
 			oldx = x; oldy = y;
 		}
 
 		//右鍵框選部分
-		if (event == CV_EVENT_RBUTTONDOWN){
+		else if (event == CV_EVENT_RBUTTONDOWN&&DUBBLECLICK == 0){
 			circle(RedPic, cvPoint(x, y), 8, cvScalar(0, 0, 255));
 			oldx = x; oldy = y;
 		}
-		if (event == CV_EVENT_RBUTTONUP){
+		else if (event == CV_EVENT_RBUTTONUP&&DUBBLECLICK == 0){
+			cout << "come in 1" << endl;
 			rectangle(RedPic, Rect(cv::Point(oldx, oldy), cvPoint(x, y)), Scalar(0, 255, 0), -1);
 			rectangle(protectRegion, Rect(cv::Point(oldx * 4, oldy * 4), cvPoint(x * 4, y * 4)), Scalar(255), -1);
+			rectangle(RedPicCPY_forUPSAMPLE, Rect(cv::Point(oldx * 4, oldy * 4), cvPoint(x * 4, y * 4)), Scalar(0, 255, 0), -1);
 		}
 
 		//中鍵橡皮擦部分
-		if (event == CV_EVENT_MBUTTONDOWN){
+		else if (event == CV_EVENT_MBUTTONDOWN&&DUBBLECLICK == 0){
 			oldx = x; oldy = y;
 			eraserDown = 1;
 		}
-		if (event == CV_EVENT_MBUTTONUP){
+		else if (event == CV_EVENT_MBUTTONUP&&DUBBLECLICK == 0){
 			eraserDown = 0;
 			//把binaryMap歸零
 			Mat TempForBinaryMap(RedPic.rows, RedPic.cols, CV_8UC1, Scalar(0));
 			Mat TempForBinaryMap_protectVER(original.rows, original.cols, CV_8UC1, Scalar(0));
+			Mat TempForBinaryMap_Upsample(original.rows, original.cols, CV_8UC1, Scalar(0));
 			BinaryMapForUI = TempForBinaryMap.clone();
 			BinaryMapForProtectMap = TempForBinaryMap_protectVER.clone();
+			BinaryMapForUPsample = TempForBinaryMap_Upsample.clone();
 		}
-		if (event == CV_EVENT_MOUSEMOVE && eraserDown == 1){
+		else if (event == CV_EVENT_MOUSEMOVE && eraserDown == 1 && DUBBLECLICK == 0){
 			line(BinaryMapForUI, cvPoint(x, y), cvPoint(oldx, oldy), cvScalar(1), paint_size, 8, 0);
-			line(BinaryMapForProtectMap, cvPoint(x*4, y*4), cvPoint(oldx*4, oldy*4), cvScalar(1), paint_size*4, 8, 0);
-	
-			for (int i = 0; i < BinaryMapForUI.rows; i++)
-			for (int j = 0; j < BinaryMapForUI.cols; j++){
-				if ((int)BinaryMapForUI.at<uchar>(i, j) == 1)
-					RedPic.at<Vec3b>(i, j) = RedPicCPY.at<Vec3b>(i, j);
-			}
+			line(BinaryMapForProtectMap, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(1), paint_size * 4, 8, 0);
+			line(BinaryMapForUPsample, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(1), paint_size * 4, 8, 0);
 
 
 			for (int i = 0; i < BinaryMapForProtectMap.rows; i++)
 			for (int j = 0; j < BinaryMapForProtectMap.cols; j++){
-				if ((int)BinaryMapForProtectMap.at<uchar>(i, j) == 1)
+				if ((int)BinaryMapForProtectMap.at<uchar>(i, j) == 1)//保護區圖的橡皮擦回復
 					protectRegion.at<uchar>(i, j) = ProtectRegionCPY.at<uchar>(i, j);
+
+				if ((int)BinaryMapForUI.at<uchar>(i / 4, j / 4) == 1)//介面區圖的橡皮擦回復
+					RedPic.at<Vec3b>(i / 4, j / 4) = RedPicCPY.at<Vec3b>(i / 4, j / 4);
+
+				if ((int)BinaryMapForUPsample.at<uchar>(i, j) == 1){//放大區圖的橡皮擦回復
+					RedPicCPY_forUPSAMPLE.at<Vec3b>(i, j) = RedPicCPY_forUPSAMPLEeraser.at<Vec3b>(i, j);
+				}
 			}
 
 			oldx = x; oldy = y;
 		}
 
 
-		
-	
-	
-		imshow("RedPic", RedPic);
+		if (modeDC == 1){
+			DUBBLECLICK = 0;
+			imshow("RedPic", ROI);
+		}
+		else{
+			DUBBLECLICK = 0;
+			imshow("RedPic", RedPic);
+		}
+
+
 	}
 	//--
 	/// <summary>
@@ -336,16 +386,25 @@ namespace 測試視窗 {
 					 if (img.at<uchar>(i, j) == 0)
 						 RedPic.at<Vec3b>(i, j) = 0;
 				 }//for
-	
+
+				 //放大用參考圖
+				 RedPicCPY_forUPSAMPLE = RedPic.clone();
+				 RedPicCPY_forUPSAMPLEeraser = RedPic.clone();
+
 				 //變更顯示圖大小
 				 resize(RedPic, RedPic, cv::Size(RedPic.cols / 4, RedPic.rows / 4), INTER_CUBIC);
-				 //for eraser
+
+				 //橡皮擦用之物件
 				 Mat TempForBinaryMap(RedPic.rows, RedPic.cols, CV_8UC1, Scalar(0));
 				 Mat TempForBinaryMap_protectVER(original.rows, original.cols, CV_8UC1, Scalar(0));
+				 Mat TempForBinaryMap_UPsampleVER(original.rows, original.cols, CV_8UC1, Scalar(0));
+
 				 BinaryMapForUI = TempForBinaryMap.clone();
 				 RedPicCPY = RedPic.clone();
 				 BinaryMapForProtectMap = TempForBinaryMap_protectVER.clone();
 				 ProtectRegionCPY = protectRegion.clone();
+				 BinaryMapForUPsample=TempForBinaryMap_UPsampleVER.clone();
+
 
 				 progressBar1->Value = 100;
 				 namedWindow("RedPic", 0);//參數0代表以可包含全部圖片的視窗大小開啟
@@ -353,7 +412,25 @@ namespace 測試視窗 {
 
 
 				 cvSetMouseCallback("RedPic", mymouse);
-				 cvWaitKey(0);
+
+				 int key = 0;
+				 while (1) {
+					 if (key != 27){
+						 key = waitKey(1);
+						 if (key == '+'&&paint_size <= scollbarMax - 30)
+							 paint_size += 30;
+
+						 if (key == '-'&&paint_size >= scollbarMin + 30)
+							 paint_size -= 30;
+						 if (key == '3') 
+							 DUBBLECLICK = 1;
+					 }
+					 else{
+						 MessageBox::Show("Ready to store it.", "Message");
+						 break;
+					 }
+					
+				 }//
 
 				 //-----
 				 for (int h = 0; h < img.rows; h++)
@@ -386,7 +463,7 @@ private: System::Void MyForm_Load(System::Object^  sender, System::EventArgs^  e
 			// hScrollBar1->Value = 250;
 }
 private: System::Void button2_Click(System::Object^  sender, System::EventArgs^  e) {
-			 MessageBox::Show("左右件都有功能\nThe functions in this section perform various geometrical transformations of 2D images. They do not change the image content but deform the pixel grid and map this deformed grid to the destination image. In fact, to avoid sampling artifacts, the mapping is done in the reverse order, from destination to the source. That is, for each pixel (x, y) of the destination image, the functions compute coordinates of the corresponding “donor” pixel in the source image and copy the pixel value", "Manual");
+			 MessageBox::Show("Mouse event:\n1.Left click mouse ,drag and drop to draw modifying curve. \n2.Right click mouse ,drag and drop to draw modifying rectangle.\n3.Middle click mouse ,drag and drop to erase places you were modifying.\nKeyboard event:\n1.Press number 1 to shrink down the painting brush size.\n2.Press number 2 to enlarge the painting brush size.\nPress Esc to store this work", "manual");
 }
 };
 }
