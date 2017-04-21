@@ -49,24 +49,24 @@ namespace 測試視窗 {
 	
 	void mymouse(int event, int x, int y, int flag, void* param)
 	{
-		static int oldx, oldy, now_down = 0, eraserDown, ROIxBEGIN, ROIxEND, ROIyBEGIN, ROIyEND;
+		static int oldx, oldy, DownX, DownY, oldDownX, oldDownY, now_down = 0, eraserDown, ROIxBEGIN, ROIxEND, ROIyBEGIN, ROIyEND;
+		cout << x << "," << y << endl;
 		//左鍵雙擊放大部分
-		cout << DUBBLECLICK << endl;
 		if (event == CV_EVENT_LBUTTONDBLCLK && DUBBLECLICK == 1){
-			modeDC = 1;
 
+			modeDC = 1;
 			ROIxBEGIN = x * 4 - RedPicCPY_forUPSAMPLE.cols / 4;
 			ROIxEND = x * 4 + RedPicCPY_forUPSAMPLE.cols / 4;
 			ROIyBEGIN = y * 4 - RedPicCPY_forUPSAMPLE.rows / 4;
 			ROIyEND = y * 4 + RedPicCPY_forUPSAMPLE.rows / 4;
 
 			if (ROIxBEGIN < 0) ROIxBEGIN = 0;
-			if (ROIxEND > RedPicCPY_forUPSAMPLE.cols)ROIxEND = RedPicCPY_forUPSAMPLE.cols - 1;
+			else if (ROIxEND > RedPicCPY_forUPSAMPLE.cols)ROIxBEGIN = RedPicCPY_forUPSAMPLE.cols / 2 - 1;
+
 			if (ROIyBEGIN< 0) ROIyBEGIN = 0;
-			if (ROIyEND > RedPicCPY_forUPSAMPLE.rows - 1)ROIyEND = RedPicCPY_forUPSAMPLE.rows - 1;
+			else if (ROIyEND > RedPicCPY_forUPSAMPLE.rows - 1)ROIyBEGIN = RedPicCPY_forUPSAMPLE.rows / 2 - 1;
 
-			ROI = RedPicCPY_forUPSAMPLE(Rect(ROIxBEGIN, ROIyBEGIN, ROIxEND - ROIxBEGIN, ROIyEND - ROIyBEGIN));
-
+			ROI = RedPicCPY_forUPSAMPLE(Rect(ROIxBEGIN, ROIyBEGIN, RedPicCPY_forUPSAMPLE.cols / 2 - 1, RedPicCPY_forUPSAMPLE.rows / 2 - 1));
 			DUBBLECLICK = 0;
 			imshow("RedPic", ROI);
 		}
@@ -75,40 +75,105 @@ namespace 測試視窗 {
 			modeDC = 0;
 			DUBBLECLICK = 0;
 		}
-		//左鍵畫線部分
-		else if (event == CV_EVENT_LBUTTONDOWN&&DUBBLECLICK == 0){
-			circle(RedPic, cvPoint(x, y), paint_size / 2, cvScalar(0, 0, 255));
-			cout << "come in" << endl;
-			oldx = x; oldy = y;
-			now_down = 1;
 
+		//左鍵畫線部分
+		else if (event == CV_EVENT_LBUTTONDOWN){
+			//若在一般模式下
+			if (modeDC == 0 && DUBBLECLICK == 0){
+				circle(RedPic, cvPoint(x, y), paint_size / 2, cvScalar(0, 0, 255));
+				circle(RedPicCPY_forUPSAMPLE, cvPoint(x * 4, y * 4), paint_size * 2, cvScalar(0, 0, 255));
+				oldx = x; oldy = y;
+				now_down = 1;
+			}
+
+			//若在放大模式下
+			else if (modeDC == 1){
+				DownX = ROIxBEGIN + x;
+				DownY = ROIyBEGIN + y;
+				circle(ROI, cvPoint(x, y), paint_size * 2, cvScalar(0, 0, 255));
+				circle(RedPic, cvPoint(DownX / 4, DownY / 4), paint_size / 2, cvScalar(0, 0, 255));
+				oldx = x; oldy = y;
+				oldDownX = DownX; oldDownY = DownY;
+				now_down = 1;
+			}
 		}
-		else if (event == CV_EVENT_LBUTTONUP&&DUBBLECLICK == 0){
+		else if (event == CV_EVENT_LBUTTONUP){
 			now_down = 0;
 		}
 		else if (event == CV_EVENT_MOUSEMOVE && now_down == 1){
-			line(RedPic, cvPoint(x, y), cvPoint(oldx, oldy), cvScalar(0, 255, 0), paint_size, 8, 0);
-			line(protectRegion, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(255), paint_size * 4, 8, 0);
-			line(RedPicCPY_forUPSAMPLE, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(0, 255, 0), paint_size * 4, 8, 0);
-			oldx = x; oldy = y;
+			//若在一般模式下
+			if (modeDC == 0 && DUBBLECLICK == 0){
+				line(RedPic, cvPoint(x, y), cvPoint(oldx, oldy), cvScalar(0, 255, 0), paint_size, 8, 0);
+				line(protectRegion, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(255), paint_size * 4, 8, 0);
+				line(RedPicCPY_forUPSAMPLE, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(0, 255, 0), paint_size * 4, 8, 0);
+				oldx = x; oldy = y;
+
+			}
+			//若在放大模式下
+			if (modeDC == 1){
+				DownX = ROIxBEGIN + x;
+				DownY = ROIyBEGIN + y;
+				line(ROI, cvPoint(x, y), cvPoint(oldx, oldy), cvScalar(0, 255, 0), paint_size * 2, 8, 0);
+				line(RedPic, cvPoint(DownX / 4, DownY / 4), cvPoint(oldDownX / 4, oldDownY / 4), cvScalar(0, 255, 0), paint_size / 2, 8, 0);
+				line(protectRegion, cvPoint(DownX, DownY), cvPoint(oldDownX, oldDownY), cvScalar(255), paint_size * 2, 8, 0);
+
+				oldx = x; oldy = y;
+				oldDownX = DownX; oldDownY = DownY;
+
+			}
 		}
 
 		//右鍵框選部分
-		else if (event == CV_EVENT_RBUTTONDOWN&&DUBBLECLICK == 0){
-			circle(RedPic, cvPoint(x, y), 8, cvScalar(0, 0, 255));
-			oldx = x; oldy = y;
+		else if (event == CV_EVENT_RBUTTONDOWN){
+			//若在一般模式下
+			if (DUBBLECLICK == 0 && modeDC == 0){
+				oldx = x; oldy = y;
+			}
+			//若在放大模式下
+			else if (modeDC == 1){
+				DownX = ROIxBEGIN + x;
+				DownY = ROIyBEGIN + y;
+				oldDownX = DownX; oldDownY = DownY;
+				oldx = x; oldy = y;
+			}
+
 		}
-		else if (event == CV_EVENT_RBUTTONUP&&DUBBLECLICK == 0){
-			cout << "come in 1" << endl;
-			rectangle(RedPic, Rect(cv::Point(oldx, oldy), cvPoint(x, y)), Scalar(0, 255, 0), -1);
-			rectangle(protectRegion, Rect(cv::Point(oldx * 4, oldy * 4), cvPoint(x * 4, y * 4)), Scalar(255), -1);
-			rectangle(RedPicCPY_forUPSAMPLE, Rect(cv::Point(oldx * 4, oldy * 4), cvPoint(x * 4, y * 4)), Scalar(0, 255, 0), -1);
+		else if (event == CV_EVENT_RBUTTONUP){
+			//若在一般模式下
+			if (DUBBLECLICK == 0 && modeDC == 0){
+				rectangle(RedPic, Rect(cv::Point(oldx, oldy), cvPoint(x, y)), Scalar(0, 255, 0), -1);
+				rectangle(protectRegion, Rect(cv::Point(oldx * 4, oldy * 4), cvPoint(x * 4, y * 4)), Scalar(255), -1);
+				rectangle(RedPicCPY_forUPSAMPLE, Rect(cv::Point(oldx * 4, oldy * 4), cvPoint(x * 4, y * 4)), Scalar(0, 255, 0), -1);
+			}
+			//若在放大模式下
+			else if (modeDC == 1){
+				DownX = ROIxBEGIN + x;
+				DownY = ROIyBEGIN + y;
+
+				rectangle(ROI, Rect(cv::Point(oldx, oldy), cvPoint(x, y)), Scalar(0, 255, 0), -1);
+				rectangle(RedPic, Rect(cv::Point(oldDownX / 4, oldDownY / 4), cvPoint(DownX / 4, DownY / 4)), Scalar(0, 255, 0), -1);
+				rectangle(protectRegion, Rect(cv::Point(oldDownX, oldDownY), cvPoint(DownX, DownY)), Scalar(255), -1);
+
+				oldDownX = DownX; oldDownY = DownY;
+				oldx = x; oldy = y;
+			}
 		}
 
 		//中鍵橡皮擦部分
-		else if (event == CV_EVENT_MBUTTONDOWN&&DUBBLECLICK == 0){
-			oldx = x; oldy = y;
+		else if (event == CV_EVENT_MBUTTONDOWN){
 			eraserDown = 1;
+			//若在一般模式下
+			if (DUBBLECLICK == 0 && modeDC == 0){
+				oldx = x; oldy = y;
+
+			}
+			//若在放大模式下
+			else if (modeDC == 1){
+				DownX = ROIxBEGIN + x;
+				DownY = ROIyBEGIN + y;
+				oldDownX = DownX; oldDownY = DownY;
+				oldx = x; oldy = y;
+			}
 		}
 		else if (event == CV_EVENT_MBUTTONUP&&DUBBLECLICK == 0){
 			eraserDown = 0;
@@ -120,10 +185,27 @@ namespace 測試視窗 {
 			BinaryMapForProtectMap = TempForBinaryMap_protectVER.clone();
 			BinaryMapForUPsample = TempForBinaryMap_Upsample.clone();
 		}
-		else if (event == CV_EVENT_MOUSEMOVE && eraserDown == 1 && DUBBLECLICK == 0){
-			line(BinaryMapForUI, cvPoint(x, y), cvPoint(oldx, oldy), cvScalar(1), paint_size, 8, 0);
-			line(BinaryMapForProtectMap, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(1), paint_size * 4, 8, 0);
-			line(BinaryMapForUPsample, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(1), paint_size * 4, 8, 0);
+		else if (event == CV_EVENT_MOUSEMOVE && eraserDown == 1){
+			//若在一般模式下
+			if (DUBBLECLICK == 0 && modeDC == 0){
+				line(BinaryMapForUI, cvPoint(x, y), cvPoint(oldx, oldy), cvScalar(1), paint_size, 8, 0);
+				line(BinaryMapForProtectMap, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(1), paint_size * 4, 8, 0);
+				line(BinaryMapForUPsample, cvPoint(x * 4, y * 4), cvPoint(oldx * 4, oldy * 4), cvScalar(1), paint_size * 4, 8, 0);
+				oldx = x; oldy = y;
+			}
+
+			//若在放大模式下
+			if (modeDC == 1){
+				DownX = ROIxBEGIN + x;
+				DownY = ROIyBEGIN + y;
+
+				line(BinaryMapForUPsample, cvPoint(DownX, DownY), cvPoint(oldDownX, oldDownY), cvScalar(1), paint_size * 2, 8, 0);
+				line(BinaryMapForUI, cvPoint(DownX / 4, DownY / 4), cvPoint(oldDownX / 4, oldDownY / 4), cvScalar(1), paint_size / 2, 8, 0);
+				line(BinaryMapForProtectMap, cvPoint(DownX, DownY), cvPoint(oldDownX, oldDownY), cvScalar(1), paint_size * 2, 8, 0);
+
+				oldDownX = DownX; oldDownY = DownY;
+				oldx = x; oldy = y;
+			}
 
 
 			for (int i = 0; i < BinaryMapForProtectMap.rows; i++)
@@ -138,10 +220,7 @@ namespace 測試視窗 {
 					RedPicCPY_forUPSAMPLE.at<Vec3b>(i, j) = RedPicCPY_forUPSAMPLEeraser.at<Vec3b>(i, j);
 				}
 			}
-
-			oldx = x; oldy = y;
 		}
-
 
 		if (modeDC == 1){
 			DUBBLECLICK = 0;
@@ -151,7 +230,6 @@ namespace 測試視窗 {
 			DUBBLECLICK = 0;
 			imshow("RedPic", RedPic);
 		}
-
 
 	}
 	//--
@@ -310,7 +388,6 @@ namespace 測試視窗 {
 						 (const char*)(Marshal::StringToHGlobalAnsi(openFileDialog1->FileName)).ToPointer();
 					 imgName = chars;
 					 Marshal::FreeHGlobal(IntPtr((void*)chars));
-					 MessageBox::Show("Click to start reading", "Message");
 					 //imgName = Convert::ToString( openFileDialog1->FileName);
 					 backgroundWorker1->RunWorkerAsync();
 				 }
@@ -323,7 +400,6 @@ namespace 測試視窗 {
 
 				 img = imread(imgName, 0);
 				 protectRegion = ~img.clone();
-				// MessageBox::Show("aaa");
 				 progressBar1->Value = 15;
 				 img = ~img;//黑變白
 				 gRemoveSize = ((double)80 / (6155 * 6435)) * (img.rows * img.cols);
@@ -378,11 +454,7 @@ namespace 測試視窗 {
 				 for (int j = 0; j < img.cols; j++){
 					 if (original.at<uchar>(i, j) - img.at<uchar>(i, j) == -255){
 						 RedPic.at<Vec3b>(i, j)[1] = 0;
-
-
 					 }
-
-
 					 if (img.at<uchar>(i, j) == 0)
 						 RedPic.at<Vec3b>(i, j) = 0;
 				 }//for
@@ -408,10 +480,9 @@ namespace 測試視窗 {
 
 				 progressBar1->Value = 100;
 				 namedWindow("RedPic", 0);//參數0代表以可包含全部圖片的視窗大小開啟
-				 imshow("RedPic", RedPic);
-
 
 				 cvSetMouseCallback("RedPic", mymouse);
+				 
 
 				 int key = 0;
 				 while (1) {
@@ -431,6 +502,8 @@ namespace 測試視窗 {
 					 }
 					
 				 }//
+				 imshow("RedPic", RedPic);
+				 waitKey();
 
 				 //-----
 				 for (int h = 0; h < img.rows; h++)
@@ -450,7 +523,6 @@ namespace 測試視窗 {
 				 imwrite("Protect_Out.png", protectRegion);
 				 imwrite("Final_Output.png", original);
 				 MessageBox::Show("Image archives successful!!", "Message");
-	
 	}
 private: System::Void hScrollBar1_Scroll(System::Object^  sender, System::Windows::Forms::ScrollEventArgs^  e) {
 				 paint_size = hScrollBar1->Value;
